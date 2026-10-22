@@ -50,6 +50,17 @@
   .tips b{color:var(--text);font-weight:600}
   .tips ol{padding-left:18px;margin:8px 0 0}
   [hidden]{display:none!important}
+  #results{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .res{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:8px;border-radius:12px;
+    border:1px solid var(--line);background:var(--panel);color:var(--text)}
+  .res:active{border-color:var(--accent)}
+  .res img{width:120px;height:68px;object-fit:cover;border-radius:8px;flex:none;background:#1a1a1e}
+  .res .t{font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .res .c{font-size:12px;color:var(--muted);margin-top:4px}
+  .res .m{min-width:0}
+  .more{width:100%;margin-top:8px;padding:12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:15px}
+  .keybox{margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .keybox summary{color:var(--muted);font-size:14px;cursor:pointer}
   /* ---------- VR ---------- */
   #vr{position:fixed;inset:0;display:none;background:#000}
   #vr.on{display:block}
@@ -90,7 +101,29 @@
     </div>
 
     <div id="modeYT">
-      <label for="url">Enlace del video</label>
+      <label for="q">Buscar video 360</label>
+      <form id="searchForm" class="row" autocomplete="off">
+        <input id="q" type="text" enterkeyhint="search" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Ej. Holbox, tiburón ballena, Teotihuacán">
+        <button id="searchBtn" class="paste" type="submit">Buscar</button>
+      </form>
+      <div class="err" id="sErr"></div>
+      <div id="results"></div>
+      <button id="more" class="more" type="button" hidden>Ver más resultados</button>
+
+      <details id="keyBox" class="keybox">
+        <summary>Clave de búsqueda de YouTube</summary>
+        <p class="note">Se guarda solo en este iPhone. Sin clave, el botón Buscar abre YouTube con el filtro 360.</p>
+        <div class="row">
+          <input id="key" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="AIza...">
+          <button id="pasteKey" class="paste" type="button">Pegar</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button id="saveKey" class="paste" type="button">Guardar clave</button>
+          <span class="note" id="keyState" style="margin:0"></span>
+        </div>
+      </details>
+
+      <label for="url">O pega el enlace del video</label>
       <div class="row">
         <input id="url" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://youtu.be/...">
         <button id="paste" class="paste" type="button">Pegar</button>
@@ -219,6 +252,88 @@
       err('Safari no dejó leer el portapapeles. Revisa Ajustes → Apps → Safari → Pegar de otras apps.');
     }
   };
+
+  /* ---------- búsqueda de YouTube ---------- */
+  const keyNow = () => store.get('ytkey', '');
+  function showKeyState(){
+    const k = keyNow();
+    $('#keyState').textContent = k ? 'Clave guardada ✓' : 'Sin clave';
+    $('#key').value = k;
+  }
+  showKeyState();
+  $('#pasteKey').onclick = async () => {
+    try{ const t = await navigator.clipboard.readText(); if (t) $('#key').value = t.trim(); }
+    catch(e){ $('#key').focus(); }
+  };
+  $('#saveKey').onclick = () => {
+    const k = $('#key').value.trim();
+    if (k && !/^AIza[\w-]{30,}$/.test(k)){ $('#keyState').textContent = 'Esa clave no tiene el formato de Google (empieza con AIza).'; return; }
+    store.set('ytkey', k); showKeyState();
+  };
+
+  const decode = s => { const t = document.createElement('textarea'); t.innerHTML = s; return t.value; };
+  let nextToken = null, lastQuery = '';
+
+  async function search(q, pageToken){
+    const key = keyNow();
+    $('#sErr').textContent = '';
+    if (!key){
+      // sin clave: abre YouTube con el filtro 360 (sp=EgJ4AQ%3D%3D)
+      window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent(q) + '&sp=EgJ4AQ%253D%253D', '_blank');
+      $('#sErr').textContent = 'Abrí YouTube con el filtro 360. Copia el enlace del video y pégalo abajo. Para buscar aquí mismo, agrega tu clave.';
+      return;
+    }
+    $('#searchBtn').textContent = '…';
+    const p = new URLSearchParams({
+      part:'snippet', type:'video', videoEmbeddable:'true', maxResults:'15',
+      q: /360/.test(q) ? q : q + ' 360', key, relevanceLanguage:'es'
+    });
+    if (pageToken) p.set('pageToken', pageToken);
+    try{
+      const r = await fetch('https://www.googleapis.com/youtube/v3/search?' + p.toString());
+      const j = await r.json();
+      if (!r.ok){
+        const reason = j && j.error && j.error.errors && j.error.errors[0] && j.error.errors[0].reason || '';
+        $('#sErr').textContent =
+          reason === 'quotaExceeded' ? 'Se acabaron las búsquedas de hoy (límite gratuito de Google). Se reinicia mañana.' :
+          (reason === 'keyInvalid' || r.status === 400) ? 'La clave no es válida. Revísala en "Clave de búsqueda".' :
+          r.status === 403 ? 'Google rechazó la clave. Revisa que la API de YouTube esté activada y que el sitio esté autorizado.' :
+          'No se pudo buscar (' + r.status + ').';
+        return;
+      }
+      if (!pageToken) $('#results').innerHTML = '';
+      nextToken = j.nextPageToken || null; lastQuery = q;
+      $('#more').hidden = !nextToken;
+      if (!j.items || !j.items.length){ if (!pageToken) $('#sErr').textContent = 'Sin resultados. Prueba con otras palabras.'; return; }
+      for (const it of j.items){
+        const id = it.id && it.id.videoId; if (!id) continue;
+        const sn = it.snippet || {};
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'res';
+        const img = document.createElement('img');
+        img.alt = ''; img.loading = 'lazy';
+        img.src = (sn.thumbnails && (sn.thumbnails.medium || sn.thumbnails.default) || {}).url || '';
+        const m = document.createElement('div'); m.className = 'm';
+        const t = document.createElement('div'); t.className = 't'; t.textContent = decode(sn.title || '');
+        const c = document.createElement('div'); c.className = 'c'; c.textContent = decode(sn.channelTitle || '');
+        m.append(t, c); b.append(img, m);
+        b.onclick = () => { $('#url').value = 'https://youtu.be/' + id; $('#go').onclick(); };
+        $('#results').appendChild(b);
+      }
+    }catch(e){
+      $('#sErr').textContent = 'No se pudo conectar con YouTube. Revisa tu internet.';
+    }finally{
+      $('#searchBtn').textContent = 'Buscar';
+    }
+  }
+  $('#searchForm').onsubmit = e => {
+    e.preventDefault();
+    const q = $('#q').value.trim();
+    if (!q){ $('#sErr').textContent = 'Escribe qué quieres ver.'; return; }
+    $('#q').blur();
+    search(q, null);
+  };
+  $('#more').onclick = () => { if (nextToken) search(lastQuery, nextToken); };
 
   function parseId(input){
     input = (input || '').trim();
