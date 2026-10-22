@@ -111,8 +111,8 @@
       <button id="more" class="more" type="button" hidden>Ver más resultados</button>
 
       <details id="keyBox" class="keybox">
-        <summary>Clave de búsqueda de YouTube</summary>
-        <p class="note">Se guarda solo en este iPhone. Sin clave, el botón Buscar abre YouTube con el filtro 360.</p>
+        <summary>Búsqueda avanzada (opcional)</summary>
+        <p class="note">No es necesaria. Si algún día la búsqueda normal falla, aquí puedes poner una clave de Google para buscar por la vía oficial. Se guarda solo en este iPhone.</p>
         <div class="row">
           <input id="key" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="AIza...">
           <button id="pasteKey" class="paste" type="button">Pegar</button>
@@ -274,13 +274,75 @@
   const decode = s => { const t = document.createElement('textarea'); t.innerHTML = s; return t.value; };
   let nextToken = null, lastQuery = '';
 
+  /* búsqueda sin clave: servidores públicos Invidious (filtro 360 nativo) */
+  let invHosts = null, invPage = 1;
+  async function getInvHosts(){
+    if (invHosts) return invHosts;
+    const fallback = ['invidious.f5.si', 'inv.nadeko.net', 'yewtu.be', 'invidious.nerdvpn.de'];
+    try{
+      const ctl = new AbortController(); setTimeout(() => ctl.abort(), 5000);
+      const r = await fetch('https://api.invidious.io/instances.json?sort_by=health', { signal: ctl.signal });
+      const j = await r.json();
+      const list = j.filter(x => x[1] && x[1].api && x[1].type === 'https').map(x => x[0]);
+      invHosts = [...new Set([...fallback.slice(0, 1), ...list, ...fallback])];
+    }catch(e){ invHosts = fallback; }
+    return invHosts;
+  }
+  async function invSearch(q, page){
+    const hosts = await getInvHosts();
+    for (let i = 0; i < hosts.length && i < 10; i++){
+      const h = hosts[i];
+      try{
+        const ctl = new AbortController(); setTimeout(() => ctl.abort(), 6000);
+        const r = await fetch('https://' + h + '/api/v1/search?type=video&features=360&page=' + page + '&q=' + encodeURIComponent(q), { signal: ctl.signal });
+        if (!r.ok) continue;
+        const j = await r.json();
+        if (!Array.isArray(j)) continue;
+        // el que funcionó pasa al frente para la siguiente búsqueda
+        hosts.splice(i, 1); hosts.unshift(h);
+        return j.filter(v => v.type === 'video' && v.videoId).map(v => ({ id: v.videoId, title: v.title || '', channel: v.author || '' }));
+      }catch(e){}
+    }
+    return null;
+  }
+  function renderResults(items, append){
+    if (!append) $('#results').innerHTML = '';
+    for (const it of items){
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'res';
+      const img = document.createElement('img');
+      img.alt = ''; img.loading = 'lazy'; img.src = 'https://i.ytimg.com/vi/' + it.id + '/mqdefault.jpg';
+      const m = document.createElement('div'); m.className = 'm';
+      const t = document.createElement('div'); t.className = 't'; t.textContent = it.title;
+      const c = document.createElement('div'); c.className = 'c'; c.textContent = it.channel;
+      m.append(t, c); b.append(img, m);
+      b.onclick = () => { $('#url').value = 'https://youtu.be/' + it.id; $('#go').onclick(); };
+      $('#results').appendChild(b);
+    }
+  }
+
   async function search(q, pageToken){
     const key = keyNow();
     $('#sErr').textContent = '';
     if (!key){
-      // sin clave: abre YouTube con el filtro 360 (sp=EgJ4AQ%3D%3D)
-      window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent(q) + '&sp=EgJ4AQ%253D%253D', '_blank');
-      $('#sErr').textContent = 'Abrí YouTube con el filtro 360. Copia el enlace del video y pégalo abajo. Para buscar aquí mismo, agrega tu clave.';
+      $('#searchBtn').textContent = '…';
+      invPage = pageToken ? invPage + 1 : 1;
+      const items = await invSearch(q, invPage);
+      $('#searchBtn').textContent = 'Buscar';
+      if (items && items.length){
+        renderResults(items, !!pageToken);
+        lastQuery = q; nextToken = 'inv'; $('#more').hidden = false;
+        return;
+      }
+      if (items && !items.length && pageToken){ $('#more').hidden = true; return; }
+      if (items && !items.length){ $('#sErr').textContent = 'Sin resultados 360. Prueba con otras palabras.'; return; }
+      // ningún servidor respondió: ofrece abrir YouTube con el filtro 360 (sp=EgJ4AQ%3D%3D)
+      const a = document.createElement('a');
+      a.href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q) + '&sp=EgJ4AQ%253D%253D';
+      a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Abrir esta búsqueda en YouTube';
+      a.style.color = 'var(--accent)';
+      $('#sErr').textContent = 'La búsqueda no respondió en este momento. ';
+      $('#sErr').appendChild(a);
       return;
     }
     $('#searchBtn').textContent = '…';
@@ -541,6 +603,7 @@
       S.rawYaw = S.inv ? -a.yaw : a.yaw;
       renderGL();
     }
+    if (!S.autoCentered && S.oCount > 15){ S.autoCentered = true; S.offset = -S.rawYaw; S.last = {y:999,p:999,r:999}; }
     if (S.dbg && t - lastDbg > 250){ lastDbg = t; drawDbg(); }
     S.loop = requestAnimationFrame(frame);
   }
@@ -591,7 +654,7 @@
     S.mode = mode; S.fov = +$('#fov').value; S.gap = +$('#gap').value;
     S.inv = $('#inv').checked; S.roll = $('#roll').checked; S.layout = $('#layout').value;
     store.set('fov', S.fov); store.set('gap', S.gap); store.set('inv', S.inv); store.set('roll', S.roll); store.set('layout', S.layout);
-    S.offset = 0; S.oCount = 0; S.syncs = 0; S.wantPlay = true;
+    S.offset = 0; S.oCount = 0; S.syncs = 0; S.wantPlay = true; S.autoCentered = false;
     window.addEventListener('deviceorientation', onOrient);
 
     if (mode === 'yt'){
@@ -618,7 +681,7 @@
     }
     S.loop = requestAnimationFrame(frame);
     wakeOn();
-    toast('Mira al frente y toca la pantalla → Recentrar', 4500);
+    toast('Si la vista no quedó al frente, toca la pantalla → Recentrar', 4500);
   };
   function showVR(){ $('#setup').style.display = 'none'; $('#vr').classList.add('on'); }
 
