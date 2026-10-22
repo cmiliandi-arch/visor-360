@@ -12,7 +12,6 @@
 <style>
   :root{
     --bg:#000; --panel:#0d0d0f; --line:#26262b; --text:#f2f2f2; --muted:#9a9aa3; --accent:#d4b06a;
-    --inset:0%;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
@@ -22,49 +21,58 @@
     display:flex;justify-content:center}
   .wrap{width:100%;max-width:460px}
   h1{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:8px 0 4px}
-  .sub{color:var(--muted);font-size:14px;line-height:1.45;margin:0 0 24px}
+  .sub{color:var(--muted);font-size:14px;line-height:1.45;margin:0 0 20px}
+  .tabs{display:flex;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px}
+  .tabs button{flex:1;border:0;background:transparent;color:var(--muted);padding:11px 8px;border-radius:9px;font-size:15px;font-weight:600}
+  .tabs button.on{background:var(--text);color:#000}
   label{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
-  input[type=text]{width:100%;padding:14px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);
-    color:var(--text);font-size:16px;outline:none}
+  input[type=text]{flex:1;min-width:0;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);
+    color:var(--text);font-size:16px;outline:none;-webkit-user-select:text;user-select:text}
   input[type=text]:focus{border-color:var(--accent)}
-  input[type=text]{flex:1;min-width:0;-webkit-user-select:text;user-select:text}
+  .row{display:flex;align-items:center;gap:12px}
   .paste{flex:none;padding:14px 16px;border-radius:12px;border:1px solid var(--accent);background:transparent;
     color:var(--accent);font-size:16px;font-weight:600}
-  .paste:active{opacity:.7}
-  .row{display:flex;align-items:center;gap:12px}
+  .file{display:flex;align-items:center;justify-content:center;width:100%;padding:16px;border-radius:12px;
+    border:1px dashed var(--accent);color:var(--accent);font-size:16px;font-weight:600;text-transform:none;letter-spacing:0;margin:0}
+  .file input{display:none}
+  .fname{color:var(--muted);font-size:13px;margin-top:8px;word-break:break-all}
+  select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:16px}
   input[type=range]{flex:1;accent-color:var(--accent)}
   .val{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
   .check{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--text);text-transform:none;letter-spacing:0;margin:14px 0 0}
   .check input{width:20px;height:20px;accent-color:var(--accent)}
   button{font:inherit;cursor:pointer}
-  .primary{width:100%;margin-top:28px;padding:16px;border:0;border-radius:14px;background:var(--text);color:#000;
-    font-size:17px;font-weight:600}
-  .primary:active{opacity:.8}
-  .err{color:#ff7a7a;font-size:14px;margin-top:14px;min-height:1em}
-  .tips{margin-top:28px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:13px;line-height:1.55}
+  .primary{width:100%;margin-top:26px;padding:16px;border:0;border-radius:14px;background:var(--text);color:#000;font-size:17px;font-weight:600}
+  .primary:active,.paste:active{opacity:.75}
+  .err{color:#ff7a7a;font-size:14px;margin-top:14px;min-height:1em;line-height:1.4}
+  .note{color:var(--muted);font-size:13px;line-height:1.5;margin-top:10px}
+  .tips{margin-top:26px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:13px;line-height:1.55}
   .tips b{color:var(--text);font-weight:600}
   .tips ol{padding-left:18px;margin:8px 0 0}
+  [hidden]{display:none!important}
   /* ---------- VR ---------- */
   #vr{position:fixed;inset:0;display:none;background:#000}
-  #vr.on{display:flex}
+  #vr.on{display:block}
+  #ytEyes{position:absolute;inset:0;display:flex}
   .eye{position:relative;width:50%;height:100%;overflow:hidden;background:#000}
-  .eye.l{padding-left:var(--inset)}
-  .eye.r{padding-right:var(--inset)}
-  .frame{position:relative;width:100%;height:100%;overflow:hidden}
+  .frame{position:absolute;top:0;bottom:0;overflow:hidden}
   .frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+  #gl{position:absolute;inset:0;width:100%;height:100%;display:block}
   .divider{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:#000;z-index:3}
   #tap{position:absolute;inset:0;z-index:4}
   #hud{position:absolute;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:6;
-    display:none;gap:8px;flex-wrap:wrap;justify-content:center;max-width:92vw;
-    background:rgba(13,13,15,.88);border:1px solid var(--line);border-radius:16px;padding:10px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+    display:none;gap:8px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:94vw;
+    background:rgba(13,13,15,.9);border:1px solid var(--line);border-radius:16px;padding:10px}
   #hud.on{display:flex}
-  #hud button{border:1px solid var(--line);background:#16161a;color:var(--text);border-radius:10px;padding:10px 14px;font-size:14px}
+  #hud button{border:1px solid var(--line);background:#16161a;color:var(--text);border-radius:10px;padding:10px 13px;font-size:14px}
   #hud button.gold{border-color:var(--accent);color:var(--accent)}
   #toast{position:absolute;top:max(14px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:7;
-    background:rgba(13,13,15,.9);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--text);
+    background:rgba(13,13,15,.92);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:13px;
     display:none;max-width:86vw;text-align:center}
+  #dbg{position:absolute;top:8px;left:max(8px,env(safe-area-inset-left));z-index:7;display:none;
+    background:rgba(0,0,0,.75);color:#9fe39f;font:11px/1.35 ui-monospace,Menlo,monospace;padding:8px;border-radius:8px;white-space:pre;pointer-events:none}
   #rotate{position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;flex-direction:column;
-    background:#000;color:var(--text);text-align:center;padding:24px;font-size:16px;gap:12px}
+    background:#000;text-align:center;padding:24px;font-size:16px;gap:12px}
   #rotate .ic{font-size:44px}
   @media (orientation:portrait){ #vr.on #rotate{display:flex} }
 </style>
@@ -74,13 +82,33 @@
 <section id="setup">
   <div class="wrap">
     <h1>Visor 360 para Cardboard</h1>
-    <p class="sub">Pega un video 360° de YouTube. Se divide la pantalla en dos y la vista sigue el movimiento de tu cabeza.</p>
+    <p class="sub">Pantalla dividida en dos y vista que sigue el movimiento de tu cabeza.</p>
 
-    <label for="url">Enlace del video</label>
-    <div class="row">
-      <input id="url" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
-             placeholder="https://youtu.be/...">
-      <button id="paste" class="paste" type="button">Pegar</button>
+    <div class="tabs">
+      <button id="tabYT" class="on" type="button">YouTube</button>
+      <button id="tabFile" type="button">Video propio</button>
+    </div>
+
+    <div id="modeYT">
+      <label for="url">Enlace del video</label>
+      <div class="row">
+        <input id="url" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://youtu.be/...">
+        <button id="paste" class="paste" type="button">Pegar</button>
+      </div>
+      <p class="note">Usa este modo para ver videos 360 de otros canales. Depende del reproductor de YouTube y no siempre es preciso en iPhone.</p>
+    </div>
+
+    <div id="modeFile" hidden>
+      <label>Archivo de video 360</label>
+      <label class="file" for="fileIn">Elegir video del iPhone<input id="fileIn" type="file" accept="video/*"></label>
+      <div class="fname" id="fname"></div>
+      <label for="layout">Formato del video</label>
+      <select id="layout">
+        <option value="mono">360 normal (equirectangular)</option>
+        <option value="tb">360 3D arriba / abajo</option>
+        <option value="sbs">360 3D lado a lado</option>
+      </select>
+      <p class="note">Recomendado para tus propios videos: imagen idéntica en los dos ojos, giro preciso y soporte para 360 en 3D.</p>
     </div>
 
     <label>Campo de visión</label>
@@ -92,7 +120,7 @@
     <label class="check"><input id="inv" type="checkbox"> Invertir giro horizontal</label>
     <label class="check"><input id="roll" type="checkbox" checked> Compensar inclinación de cabeza</label>
 
-    <button class="primary" id="go">Entrar a VR</button>
+    <button class="primary" id="go" type="button">Entrar a VR</button>
     <div class="err" id="err"></div>
 
     <div class="tips">
@@ -101,36 +129,52 @@
         <li>Toca <b>Entrar a VR</b> y acepta el permiso de movimiento.</li>
         <li>Gira el iPhone en horizontal y mételo al Cardboard.</li>
         <li>Mira al frente y toca la pantalla → <b>Recentrar</b>.</li>
-        <li>Toca la pantalla en cualquier momento para el menú.</li>
+        <li>Si algo falla, toca la pantalla → <b>Diagnóstico</b> y mándame una captura.</li>
       </ol>
-      <p>Para pantalla completa real: en Safari, <b>Compartir → Agregar a pantalla de inicio</b> y ábrelo desde el ícono.</p>
+      <p>Para pantalla completa: en Safari, <b>Compartir → Agregar a pantalla de inicio</b> y ábrelo desde el ícono.</p>
     </div>
   </div>
 </section>
 
 <section id="vr">
-  <div class="eye l"><div class="frame"><div id="pL"></div></div></div>
-  <div class="eye r"><div class="frame"><div id="pR"></div></div></div>
+  <div id="ytEyes" hidden>
+    <div class="eye"><div class="frame" id="fL"><div id="pL"></div></div></div>
+    <div class="eye"><div class="frame" id="fR"><div id="pR"></div></div></div>
+  </div>
+  <canvas id="gl" hidden></canvas>
   <div class="divider"></div>
   <div id="tap"></div>
   <div id="hud">
-    <button id="bPlay">Pausa</button>
-    <button id="bCenter" class="gold">Recentrar</button>
-    <button id="bSound">Activar sonido</button>
-    <button id="bBack">−10 s</button>
-    <button id="bFwd">+10 s</button>
-    <button id="bExit">Salir</button>
+    <button id="bPlay" type="button">Pausa</button>
+    <button id="bCenter" class="gold" type="button">Recentrar</button>
+    <button id="bSound" type="button">Sonido</button>
+    <button id="bBack" type="button">−10 s</button>
+    <button id="bFwd" type="button">+10 s</button>
+    <button id="bDbg" type="button">Diagnóstico</button>
+    <button id="bExit" type="button">Salir</button>
   </div>
   <div id="toast"></div>
+  <div id="dbg"></div>
   <div id="rotate"><div class="ic">⟲</div>Gira el teléfono en horizontal</div>
 </section>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (() => {
   const $ = s => document.querySelector(s);
   const D2R = Math.PI / 180, R2D = 180 / Math.PI;
 
-  /* ---------- preferencias guardadas ---------- */
+  function err(msg){ $('#err').textContent = msg; }
+  let toastT;
+  function toast(msg, ms = 3500){
+    const t = $('#toast'); t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', ms);
+  }
+  window.addEventListener('error', e => err('Error: ' + (e.message || 'desconocido')));
+  window.addEventListener('unhandledrejection', e => err('Error: ' + ((e.reason && e.reason.message) || e.reason || 'desconocido')));
+  if (location.protocol !== 'https:') err('Abre esta página desde su enlace https:// en Safari.');
+
+  /* ---------- preferencias ---------- */
   const store = {
     get(k, d){ try{ const v = localStorage.getItem('v360_' + k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
     set(k, v){ try{ localStorage.setItem('v360_' + k, JSON.stringify(v)); }catch(e){} }
@@ -141,30 +185,41 @@
     const fromLink = qs.get('url') || qs.get('v');
     if (fromLink) $('#url').value = fromLink;
   }catch(e){}
+  $('#fov').value = store.get('fov', 90);
+  $('#gap').value = store.get('gap', 0);
+  $('#inv').checked = store.get('inv', false);
+  $('#roll').checked = store.get('roll', true);
+  $('#layout').value = store.get('layout', 'mono');
+  const syncLabels = () => { $('#fovV').textContent = $('#fov').value + '°'; $('#gapV').textContent = $('#gap').value; };
+  $('#fov').oninput = syncLabels; $('#gap').oninput = syncLabels; syncLabels();
+
+  let mode = 'yt';
+  function setMode(m){
+    mode = m;
+    $('#tabYT').classList.toggle('on', m === 'yt'); $('#tabFile').classList.toggle('on', m === 'file');
+    $('#modeYT').hidden = m !== 'yt'; $('#modeFile').hidden = m !== 'file'; err('');
+  }
+  $('#tabYT').onclick = () => setMode('yt');
+  $('#tabFile').onclick = () => setMode('file');
+
+  let pickedFile = null;
+  $('#fileIn').onchange = e => {
+    pickedFile = e.target.files && e.target.files[0] || null;
+    $('#fname').textContent = pickedFile ? pickedFile.name : '';
+  };
 
   $('#paste').onclick = async () => {
     err('');
     try{
       const t = await navigator.clipboard.readText();
-      if (t && t.trim()){ $('#url').value = t.trim(); }
-      else err('Tu portapapeles está vacío. Copia primero el enlace en YouTube: Compartir → Copiar enlace.');
+      if (t && t.trim()) $('#url').value = t.trim();
+      else err('El portapapeles está vacío. En YouTube toca Compartir → Copiar enlace.');
     }catch(e){
       $('#url').focus();
-      err('Safari no dejó leer el portapapeles. Mantén presionado el campo y elige "Pegar".');
+      err('Safari no dejó leer el portapapeles. Revisa Ajustes → Apps → Safari → Pegar de otras apps.');
     }
   };
-  $('#fov').value = store.get('fov', 90);
-  $('#gap').value = store.get('gap', 0);
-  $('#inv').checked = store.get('inv', false);
-  $('#roll').checked = store.get('roll', true);
-  const syncLabels = () => {
-    $('#fovV').textContent = $('#fov').value + '°';
-    $('#gapV').textContent = $('#gap').value;
-    document.documentElement.style.setProperty('--inset', $('#gap').value + '%');
-  };
-  $('#fov').oninput = syncLabels; $('#gap').oninput = syncLabels; syncLabels();
 
-  /* ---------- utilidades ---------- */
   function parseId(input){
     input = (input || '').trim();
     if (/^[\w-]{11}$/.test(input)) return input;
@@ -176,43 +231,25 @@
     }catch(e){}
     return null;
   }
-  let toastT;
-  function toast(msg, ms = 3500){
-    const t = $('#toast'); t.textContent = msg; t.style.display = 'block';
-    clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', ms);
-  }
-  function err(msg){ $('#err').textContent = msg; }
-
-  let ytPromise;
-  function loadYT(){
-    if (window.YT && YT.Player) return Promise.resolve();
-    if (ytPromise) return ytPromise;
-    ytPromise = new Promise((res, rej) => {
-      window.onYouTubeIframeAPIReady = res;
-      const s = document.createElement('script');
-      s.src = 'https://www.youtube.com/iframe_api';
-      s.onerror = () => rej(new Error('No se pudo cargar YouTube.'));
-      setTimeout(() => rej(new Error('YouTube tardó demasiado en cargar. Revisa tu conexión.')), 12000);
-      document.head.appendChild(s);
-    });
-    return ytPromise;
-  }
 
   /* ---------- estado ---------- */
-  const S = { L:null, R:null, ready:0, fov:90, inv:false, roll:true, offset:0, rawYaw:0,
-              o:{a:0,b:0,g:0,has:false}, last:{y:999,p:999,r:999}, loop:null, sync:null, wake:null, checked360:false };
+  const S = {
+    mode:'yt', fov:90, gap:0, inv:false, roll:true, layout:'mono',
+    o:{a:0,b:0,g:0}, oCount:0, offset:0, rawYaw:0, ang:{yaw:0,pitch:0,roll:0},
+    loop:null, sync:null, wake:null, dbg:false,
+    L:null, R:null, ready:0, last:{y:999,p:999,r:999}, checked360:false, syncs:0,
+    video:null, url:null, gl:null
+  };
 
-  /* ---------- orientación → yaw / pitch / roll ---------- */
+  /* ---------- orientación del teléfono ---------- */
   function qEulerYXZ(x, y, z){
     const c1=Math.cos(x/2), c2=Math.cos(y/2), c3=Math.cos(z/2), s1=Math.sin(x/2), s2=Math.sin(y/2), s3=Math.sin(z/2);
     return [ s1*c2*c3 + c1*s2*s3, c1*s2*c3 - s1*c2*s3, c1*c2*s3 - s1*s2*c3, c1*c2*c3 + s1*s2*s3 ];
   }
   function qMul(a, b){
     const [ax,ay,az,aw]=a, [bx,by,bz,bw]=b;
-    return [ ax*bw + aw*bx + ay*bz - az*by,
-             ay*bw + aw*by + az*bx - ax*bz,
-             az*bw + aw*bz + ax*by - ay*bx,
-             aw*bw - ax*bx - ay*by - az*bz ];
+    return [ ax*bw + aw*bx + ay*bz - az*by, ay*bw + aw*by + az*bx - ax*bz,
+             az*bw + aw*bz + ax*by - ay*bx, aw*bw - ax*bx - ay*by - az*bz ];
   }
   const Q1 = [-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)];
   function screenAngle(){
@@ -220,11 +257,13 @@
     if (screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
     return 0;
   }
-  function viewAngles(){
+  function deviceQuat(){
     const {a,b,g} = S.o, so = screenAngle() * D2R;
     let q = qEulerYXZ(b*D2R, a*D2R, -g*D2R);
     q = qMul(q, Q1);
-    q = qMul(q, [0, 0, Math.sin(-so/2), Math.cos(-so/2)]);
+    return qMul(q, [0, 0, Math.sin(-so/2), Math.cos(-so/2)]);
+  }
+  function quatAngles(q){
     const [x,y,z,w] = q, x2=x+x, y2=y+y, z2=z+z;
     const xx=x*x2, xy=x*y2, xz=x*z2, yy=y*y2, yz=y*z2, zz=z*z2, wx=w*x2, wy=w*y2, wz=w*z2;
     const m11=1-(yy+zz), m13=xz+wy, m21=xy+wz, m22=1-(xx+zz), m23=yz-wx, m31=xz-wy, m33=1-(xx+yy);
@@ -235,151 +274,288 @@
     return { yaw: yaw*R2D, pitch: pitch*R2D, roll: roll*R2D };
   }
   const norm360 = v => ((v % 360) + 360) % 360;
-
   function onOrient(e){
-    if (e.alpha === null) return;
-    S.o = { a:e.alpha, b:e.beta, g:e.gamma, has:true };
+    if (e.alpha === null || e.alpha === undefined) return;
+    S.o = { a:e.alpha, b:e.beta, g:e.gamma }; S.oCount++;
   }
 
-  function tick(){
-    if (S.o.has && S.ready === 2){
-      const v = viewAngles();
-      S.rawYaw = S.inv ? -v.yaw : v.yaw;
-      const yaw = norm360(S.rawYaw + S.offset);
-      const pitch = Math.max(-90, Math.min(90, v.pitch));
-      const roll = S.roll ? Math.max(-180, Math.min(180, v.roll)) : 0;
-      const d = Math.abs(yaw - S.last.y) + Math.abs(pitch - S.last.p) + Math.abs(roll - S.last.r);
-      if (d > 0.25){
-        const props = { yaw, pitch, roll, fov:S.fov, enableOrientationSensor:false };
-        try{ S.L.setSphericalProperties(props); S.R.setSphericalProperties(props); }catch(e){}
-        S.last = { y:yaw, p:pitch, r:roll };
-      }
-    }
-    S.loop = setTimeout(() => requestAnimationFrame(tick), 30);
+  /* ---------- YouTube ---------- */
+  let ytPromise;
+  function loadYT(){
+    if (window.YT && YT.Player) return Promise.resolve();
+    if (ytPromise) return ytPromise;
+    ytPromise = new Promise((res, rej) => {
+      window.onYouTubeIframeAPIReady = res;
+      const s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      s.onerror = () => rej(new Error('No se pudo cargar YouTube.'));
+      document.head.appendChild(s);
+      setTimeout(() => rej(new Error('YouTube tardó demasiado en cargar. Revisa tu conexión.')), 12000);
+    });
+    return ytPromise;
   }
-
-  /* ---------- sincronía de ambos ojos ---------- */
-  function syncEyes(){
-    if (S.ready < 2) return;
-    try{
-      const sL = S.L.getPlayerState(), sR = S.R.getPlayerState();
-      if (sL === 1 && sR !== 1 && sR !== 3) S.R.playVideo();
-      if (sL === 2 && sR === 1) S.R.pauseVideo();
-      const tL = S.L.getCurrentTime(), tR = S.R.getCurrentTime();
-      if (sL === 1 && Math.abs(tL - tR) > 0.35) S.R.seekTo(tL + 0.05, true);
-      $('#bPlay').textContent = sL === 1 ? 'Pausa' : 'Reproducir';
-      if (!S.checked360 && sL === 1){
-        S.checked360 = true;
-        const sp = S.L.getSphericalProperties && S.L.getSphericalProperties();
-        if (!sp || Object.keys(sp).length === 0) toast('Este video no parece ser 360°. Prueba con otro.', 6000);
-      }
-    }catch(e){}
+  function layoutYT(){
+    const inset = S.gap / 100 * (window.innerWidth / 2);
+    $('#fL').style.left = inset + 'px'; $('#fL').style.right = '0';
+    $('#fR').style.left = '0'; $('#fR').style.right = inset + 'px';
   }
-
-  /* ---------- reproductores ---------- */
   function makePlayer(el, id){
     return new YT.Player(el, {
       videoId: id, width:'100%', height:'100%',
       playerVars: { playsinline:1, controls:0, rel:0, modestbranding:1, disablekb:1, fs:0,
-                    iv_load_policy:3, autoplay:1, mute:1, origin: location.origin },
+                    iv_load_policy:3, autoplay:0, mute:1, origin: location.origin },
       events: {
         onReady: ev => {
-          const p = ev.target;
-          p.mute();
-          try{ p.setSphericalProperties({ fov:S.fov, enableOrientationSensor:false }); }catch(e){}
-          p.playVideo();
+          ev.target.mute();
           S.ready++;
+          if (S.ready === 2) startBothYT();
         },
         onError: ev => {
           const c = ev.data;
-          const msg = (c === 101 || c === 150 || c === 153)
+          toast((c === 101 || c === 150 || c === 153)
             ? 'El dueño de este video no permite verlo fuera de YouTube. Prueba con otro.'
-            : (c === 100 ? 'Video no encontrado o privado.' : 'Error al cargar el video (' + c + ').');
-          toast(msg, 7000);
+            : (c === 100 ? 'Video no encontrado o privado.' : 'Error al cargar el video (' + c + ').'), 7000);
         }
       }
     });
   }
-
-  async function wakeOn(){
-    try{ if ('wakeLock' in navigator) S.wake = await navigator.wakeLock.request('screen'); }catch(e){}
+  function applySpherical(force){
+    const yaw = S.ang.yaw, pitch = S.ang.pitch, roll = S.ang.roll;
+    const d = Math.abs(yaw - S.last.y) + Math.abs(pitch - S.last.p) + Math.abs(roll - S.last.r);
+    if (!force && d < 0.25) return;
+    const props = { yaw, pitch, roll, fov:S.fov, enableOrientationSensor:false };
+    try{ S.L.setSphericalProperties(props); S.R.setSphericalProperties(props); }catch(e){}
+    S.last = { y:yaw, p:pitch, r:roll };
   }
+  // Arranque alineado: ambos al segundo 0, play al mismo tiempo
+  function startBothYT(){
+    try{
+      S.L.seekTo(0, true); S.R.seekTo(0, true);
+      S.L.playVideo(); S.R.playVideo();
+      applySpherical(true);
+    }catch(e){}
+  }
+  function syncYT(){
+    if (S.ready < 2) return;
+    try{
+      const sL = S.L.getPlayerState(), sR = S.R.getPlayerState();
+      // si uno está cargando, detiene al otro para que no se adelante
+      if (sL === 3 && sR === 1) S.R.pauseVideo();
+      if (sR === 3 && sL === 1) S.L.pauseVideo();
+      if (sL === 2 && sR === 1) S.R.pauseVideo();
+      if (sL === 1 && sR === 2) S.R.playVideo();
+      if (sL === 2 && sR === 2 && S.wantPlay){ S.L.playVideo(); S.R.playVideo(); }
+      const tL = S.L.getCurrentTime(), tR = S.R.getCurrentTime();
+      if (sL === 1 && sR === 1 && Math.abs(tL - tR) > 0.2){ S.R.seekTo(tL + 0.12, true); S.syncs++; }
+      $('#bPlay').textContent = sL === 1 ? 'Pausa' : 'Reproducir';
+      if (!S.checked360 && sL === 1){
+        S.checked360 = true;
+        const sp = S.L.getSphericalProperties && S.L.getSphericalProperties();
+        if (!sp || Object.keys(sp).length === 0) toast('YouTube no reporta este video como 360°. Prueba con otro o usa el modo Video propio.', 7000);
+      }
+      applySpherical(true);
+    }catch(e){}
+  }
+
+  /* ---------- Video propio (WebGL) ---------- */
+  function buildGL(){
+    const canvas = $('#gl');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(S.fov, 1, 0.1, 100);
+    const tex = new THREE.VideoTexture(S.video);
+    tex.encoding = THREE.sRGBEncoding;
+    tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+    function sphere(eye){
+      const g = new THREE.SphereGeometry(50, 64, 40);
+      g.scale(-1, 1, 1);
+      const uv = g.attributes.uv;
+      for (let i = 0; i < uv.count; i++){
+        let u = uv.getX(i), v = uv.getY(i);
+        if (S.layout === 'tb'){ v = v * 0.5 + (eye === 'L' ? 0.5 : 0); }
+        if (S.layout === 'sbs'){ u = u * 0.5 + (eye === 'L' ? 0 : 0.5); }
+        uv.setXY(i, u, v);
+      }
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map:tex }));
+      scene.add(m); return m;
+    }
+    const mL = sphere('L'), mR = S.layout === 'mono' ? mL : sphere('R');
+    S.gl = { renderer, scene, camera, mL, mR, tex };
+    resizeGL();
+  }
+  function resizeGL(){
+    if (!S.gl) return;
+    S.gl.renderer.setSize(window.innerWidth, window.innerHeight, false);
+  }
+  function renderGL(){
+    const { renderer, scene, camera, mL, mR } = S.gl;
+    const W = window.innerWidth, H = window.innerHeight, half = W / 2;
+    const inset = S.gap / 100 * half, ew = half - inset;
+    // orientación de cámara
+    const a = quatAngles(deviceQuat());
+    const yaw = (S.inv ? -a.yaw : a.yaw) + S.offset;
+    const q = qEulerYXZ(a.pitch * D2R, yaw * D2R, S.roll ? a.roll * D2R : 0);
+    camera.quaternion.set(q[0], q[1], q[2], q[3]);
+    camera.fov = S.fov; camera.aspect = ew / H; camera.updateProjectionMatrix();
+    renderer.setScissorTest(true);
+    renderer.setClearColor(0x000000, 1);
+    renderer.setViewport(0, 0, W, H); renderer.setScissor(0, 0, W, H); renderer.clear();
+    // ojo izquierdo
+    mL.visible = true; if (mR !== mL) mR.visible = false;
+    renderer.setViewport(inset, 0, ew, H); renderer.setScissor(inset, 0, ew, H);
+    renderer.render(scene, camera);
+    // ojo derecho
+    if (mR !== mL){ mL.visible = false; mR.visible = true; }
+    renderer.setViewport(half, 0, ew, H); renderer.setScissor(half, 0, ew, H);
+    renderer.render(scene, camera);
+  }
+
+  /* ---------- ciclo principal ---------- */
+  let lastDbg = 0;
+  function frame(t){
+    if (S.mode === 'yt'){
+      const q = deviceQuat(), a = quatAngles(q);
+      S.rawYaw = S.inv ? -a.yaw : a.yaw;
+      S.ang = { yaw: norm360(S.rawYaw + S.offset), pitch: Math.max(-90, Math.min(90, a.pitch)),
+                roll: S.roll ? a.roll : 0 };
+      if (S.ready === 2) applySpherical(false);
+    } else if (S.gl){
+      const a = quatAngles(deviceQuat());
+      S.rawYaw = S.inv ? -a.yaw : a.yaw;
+      renderGL();
+    }
+    if (S.dbg && t - lastDbg > 250){ lastDbg = t; drawDbg(); }
+    S.loop = requestAnimationFrame(frame);
+  }
+  function drawDbg(){
+    const f = n => (Math.round(n * 10) / 10).toFixed(1);
+    let s = 'modo: ' + (S.mode === 'yt' ? 'YouTube' : 'Video propio') + '\n' +
+            'sensor eventos: ' + S.oCount + '\n' +
+            'a/b/g: ' + f(S.o.a) + ' / ' + f(S.o.b) + ' / ' + f(S.o.g) + '\n' +
+            'pantalla: ' + screenAngle() + '°\n';
+    if (S.mode === 'yt' && S.ready === 2){
+      let spL = {}, spR = {}, tL = 0, tR = 0;
+      try{ spL = S.L.getSphericalProperties() || {}; spR = S.R.getSphericalProperties() || {};
+           tL = S.L.getCurrentTime(); tR = S.R.getCurrentTime(); }catch(e){}
+      s += 'enviado yaw/pitch: ' + f(S.ang.yaw) + ' / ' + f(S.ang.pitch) + '\n' +
+           'YT izq yaw: ' + (spL.yaw !== undefined ? f(spL.yaw) : 'sin dato') + '\n' +
+           'YT der yaw: ' + (spR.yaw !== undefined ? f(spR.yaw) : 'sin dato') + '\n' +
+           'tiempo izq/der: ' + tL.toFixed(2) + ' / ' + tR.toFixed(2) + '\n' +
+           'resincronizaciones: ' + S.syncs;
+    }
+    $('#dbg').textContent = s;
+  }
+
+  async function wakeOn(){ try{ if ('wakeLock' in navigator) S.wake = await navigator.wakeLock.request('screen'); }catch(e){} }
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && $('#vr').classList.contains('on')) wakeOn();
   });
+  window.addEventListener('resize', () => { layoutYT(); resizeGL(); });
 
-  /* ---------- entrar / salir ---------- */
-  window.addEventListener('error', e => err('Error: ' + (e.message || 'desconocido')));
-  window.addEventListener('unhandledrejection', e => err('Error: ' + ((e.reason && e.reason.message) || e.reason || 'desconocido')));
-  if (location.protocol !== 'https:') err('Esta página debe abrirse desde un enlace https:// en Safari. Desde una vista previa de archivo no funciona.');
-
+  /* ---------- entrar ---------- */
   $('#go').onclick = async () => {
     err('');
-    const id = parseId($('#url').value);
-    if (!id){ err('Pega un enlace válido de YouTube.'); return; }
-    $('#go').textContent = 'Cargando…';
-    setTimeout(() => { $('#go').textContent = 'Entrar a VR'; }, 4000);
+    let id = null;
+    if (mode === 'yt'){
+      id = parseId($('#url').value);
+      if (!id){ err('Pega un enlace válido de YouTube.'); return; }
+    } else {
+      if (!pickedFile){ err('Elige primero un video de tu iPhone.'); return; }
+      if (!window.THREE){ err('No se pudo cargar el motor 3D. Revisa tu conexión y recarga.'); return; }
+    }
 
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
       try{
         const r = await DeviceOrientationEvent.requestPermission();
         if (r !== 'granted'){ err('Sin permiso de movimiento no se puede seguir tu cabeza. Cierra Safari por completo y vuelve a intentarlo.'); return; }
-      }catch(e){ err('No se pudo pedir el permiso de movimiento. Abre la página con https://'); return; }
+      }catch(e){ err('No se pudo pedir el permiso de movimiento.'); return; }
     }
 
-    S.fov = +$('#fov').value; S.inv = $('#inv').checked; S.roll = $('#roll').checked;
-    store.set('url', $('#url').value.trim()); store.set('fov', S.fov); store.set('gap', +$('#gap').value);
-    store.set('inv', S.inv); store.set('roll', S.roll);
-
-    try{ await loadYT(); }catch(e){ ytPromise = null; err(e.message); return; }
-
-    S.ready = 0; S.checked360 = false; S.offset = 0; S.last = {y:999,p:999,r:999};
-    $('#setup').style.display = 'none';
-    $('#vr').classList.add('on');
-    S.L = makePlayer('pL', id);
-    S.R = makePlayer('pR', id);
+    S.mode = mode; S.fov = +$('#fov').value; S.gap = +$('#gap').value;
+    S.inv = $('#inv').checked; S.roll = $('#roll').checked; S.layout = $('#layout').value;
+    store.set('fov', S.fov); store.set('gap', S.gap); store.set('inv', S.inv); store.set('roll', S.roll); store.set('layout', S.layout);
+    S.offset = 0; S.oCount = 0; S.syncs = 0; S.wantPlay = true;
     window.addEventListener('deviceorientation', onOrient);
-    tick();
-    S.sync = setInterval(syncEyes, 1200);
+
+    if (mode === 'yt'){
+      store.set('url', $('#url').value.trim());
+      $('#go').textContent = 'Cargando…';
+      try{ await loadYT(); }catch(e){ ytPromise = null; $('#go').textContent = 'Entrar a VR'; err(e.message); return; }
+      $('#go').textContent = 'Entrar a VR';
+      S.ready = 0; S.checked360 = false; S.last = {y:999,p:999,r:999};
+      $('#ytEyes').hidden = false; $('#gl').hidden = true;
+      showVR(); layoutYT();
+      S.L = makePlayer('pL', id); S.R = makePlayer('pR', id);
+      S.sync = setInterval(syncYT, 1000);
+      $('#bSound').textContent = 'Activar sonido';
+    } else {
+      S.url = URL.createObjectURL(pickedFile);
+      const v = document.createElement('video');
+      v.src = S.url; v.playsInline = true; v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
+      v.loop = true; v.crossOrigin = 'anonymous'; v.preload = 'auto';
+      S.video = v;
+      try{ await v.play(); }catch(e){ v.muted = true; try{ await v.play(); }catch(e2){} }
+      $('#ytEyes').hidden = true; $('#gl').hidden = false;
+      showVR(); buildGL();
+      $('#bSound').textContent = v.muted ? 'Activar sonido' : 'Silenciar';
+    }
+    S.loop = requestAnimationFrame(frame);
     wakeOn();
     toast('Mira al frente y toca la pantalla → Recentrar', 4500);
   };
+  function showVR(){ $('#setup').style.display = 'none'; $('#vr').classList.add('on'); }
 
   function exitVR(){
-    clearTimeout(S.loop); clearInterval(S.sync);
+    cancelAnimationFrame(S.loop); clearInterval(S.sync);
     window.removeEventListener('deviceorientation', onOrient);
     try{ S.L && S.L.destroy(); S.R && S.R.destroy(); }catch(e){}
     S.L = S.R = null; S.ready = 0;
-    $('.eye.l .frame').innerHTML = '<div id="pL"></div>';
-    $('.eye.r .frame').innerHTML = '<div id="pR"></div>';
+    $('#fL').innerHTML = '<div id="pL"></div>'; $('#fR').innerHTML = '<div id="pR"></div>';
+    if (S.video){ try{ S.video.pause(); S.video.removeAttribute('src'); S.video.load(); }catch(e){} S.video = null; }
+    if (S.url){ URL.revokeObjectURL(S.url); S.url = null; }
+    if (S.gl){ try{ S.gl.tex.dispose(); S.gl.renderer.dispose(); }catch(e){} S.gl = null;
+      const c = $('#gl'), n = c.cloneNode(false); c.replaceWith(n); }
     try{ S.wake && S.wake.release(); }catch(e){}
-    $('#hud').classList.remove('on');
-    $('#vr').classList.remove('on');
-    $('#setup').style.display = 'flex';
+    $('#hud').classList.remove('on'); $('#dbg').style.display = 'none'; S.dbg = false;
+    $('#vr').classList.remove('on'); $('#setup').style.display = 'flex';
   }
 
   /* ---------- menú ---------- */
   let hudT;
-  $('#tap').onclick = () => {
-    const h = $('#hud'); h.classList.toggle('on');
-    clearTimeout(hudT); if (h.classList.contains('on')) hudT = setTimeout(() => h.classList.remove('on'), 6000);
-  };
-  $('#hud').onclick = () => { clearTimeout(hudT); hudT = setTimeout(() => $('#hud').classList.remove('on'), 6000); };
+  const hideLater = () => { clearTimeout(hudT); hudT = setTimeout(() => $('#hud').classList.remove('on'), 6000); };
+  $('#tap').onclick = () => { const h = $('#hud'); h.classList.toggle('on'); if (h.classList.contains('on')) hideLater(); };
+  $('#hud').onclick = hideLater;
 
   $('#bPlay').onclick = () => {
+    if (S.mode === 'file' && S.video){
+      if (S.video.paused){ S.video.play(); $('#bPlay').textContent = 'Pausa'; }
+      else { S.video.pause(); $('#bPlay').textContent = 'Reproducir'; }
+      return;
+    }
     if (S.ready < 2) return;
-    if (S.L.getPlayerState() === 1){ S.L.pauseVideo(); S.R.pauseVideo(); $('#bPlay').textContent = 'Reproducir'; }
-    else { S.L.playVideo(); S.R.playVideo(); $('#bPlay').textContent = 'Pausa'; }
+    if (S.L.getPlayerState() === 1){ S.wantPlay = false; S.L.pauseVideo(); S.R.pauseVideo(); $('#bPlay').textContent = 'Reproducir'; }
+    else { S.wantPlay = true; const t = S.L.getCurrentTime(); S.R.seekTo(t, true); S.L.playVideo(); S.R.playVideo(); $('#bPlay').textContent = 'Pausa'; }
   };
   $('#bCenter').onclick = () => { S.offset = -S.rawYaw; S.last = {y:999,p:999,r:999}; toast('Vista centrada', 1500); };
   $('#bSound').onclick = () => {
+    if (S.mode === 'file' && S.video){
+      S.video.muted = !S.video.muted; if (!S.video.muted) S.video.play();
+      $('#bSound').textContent = S.video.muted ? 'Activar sonido' : 'Silenciar'; return;
+    }
     if (S.ready < 2) return;
     if (S.L.isMuted()){ S.L.unMute(); S.L.setVolume(100); S.L.playVideo(); $('#bSound').textContent = 'Silenciar'; }
     else { S.L.mute(); $('#bSound').textContent = 'Activar sonido'; }
   };
-  const jump = s => { if (S.ready < 2) return; const t = Math.max(0, S.L.getCurrentTime() + s); S.L.seekTo(t, true); S.R.seekTo(t, true); };
+  const jump = s => {
+    if (S.mode === 'file' && S.video){ S.video.currentTime = Math.max(0, S.video.currentTime + s); return; }
+    if (S.ready < 2) return;
+    const t = Math.max(0, S.L.getCurrentTime() + s); S.L.seekTo(t, true); S.R.seekTo(t, true);
+  };
   $('#bBack').onclick = () => jump(-10);
   $('#bFwd').onclick = () => jump(10);
+  $('#bDbg').onclick = () => { S.dbg = !S.dbg; $('#dbg').style.display = S.dbg ? 'block' : 'none'; if (S.dbg) drawDbg(); };
   $('#bExit').onclick = exitVR;
 })();
 </script>
