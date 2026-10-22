@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Visor 360">
+<meta name="theme-color" content="#000000">
+<title>Visor 360 VR</title>
+<style>
+  :root{
+    --bg:#000; --panel:#0d0d0f; --line:#26262b; --text:#f2f2f2; --muted:#9a9aa3; --accent:#d4b06a;
+    --inset:0%;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;overflow:hidden}
+  /* ---------- SETUP ---------- */
+  #setup{position:fixed;inset:0;overflow-y:auto;padding:max(28px,env(safe-area-inset-top)) 20px 40px;
+    display:flex;justify-content:center}
+  .wrap{width:100%;max-width:460px}
+  h1{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:8px 0 4px}
+  .sub{color:var(--muted);font-size:14px;line-height:1.45;margin:0 0 24px}
+  label{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+  input[type=text]{width:100%;padding:14px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);
+    color:var(--text);font-size:16px;outline:none}
+  input[type=text]:focus{border-color:var(--accent)}
+  .row{display:flex;align-items:center;gap:12px}
+  input[type=range]{flex:1;accent-color:var(--accent)}
+  .val{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
+  .check{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--text);text-transform:none;letter-spacing:0;margin:14px 0 0}
+  .check input{width:20px;height:20px;accent-color:var(--accent)}
+  button{font:inherit;cursor:pointer}
+  .primary{width:100%;margin-top:28px;padding:16px;border:0;border-radius:14px;background:var(--text);color:#000;
+    font-size:17px;font-weight:600}
+  .primary:active{opacity:.8}
+  .err{color:#ff7a7a;font-size:14px;margin-top:14px;min-height:1em}
+  .tips{margin-top:28px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:13px;line-height:1.55}
+  .tips b{color:var(--text);font-weight:600}
+  .tips ol{padding-left:18px;margin:8px 0 0}
+  /* ---------- VR ---------- */
+  #vr{position:fixed;inset:0;display:none;background:#000}
+  #vr.on{display:flex}
+  .eye{position:relative;width:50%;height:100%;overflow:hidden;background:#000}
+  .eye.l{padding-left:var(--inset)}
+  .eye.r{padding-right:var(--inset)}
+  .frame{position:relative;width:100%;height:100%;overflow:hidden}
+  .frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+  .divider{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:#000;z-index:3}
+  #tap{position:absolute;inset:0;z-index:4}
+  #hud{position:absolute;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:6;
+    display:none;gap:8px;flex-wrap:wrap;justify-content:center;max-width:92vw;
+    background:rgba(13,13,15,.88);border:1px solid var(--line);border-radius:16px;padding:10px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  #hud.on{display:flex}
+  #hud button{border:1px solid var(--line);background:#16161a;color:var(--text);border-radius:10px;padding:10px 14px;font-size:14px}
+  #hud button.gold{border-color:var(--accent);color:var(--accent)}
+  #toast{position:absolute;top:max(14px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:7;
+    background:rgba(13,13,15,.9);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--text);
+    display:none;max-width:86vw;text-align:center}
+  #rotate{position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;flex-direction:column;
+    background:#000;color:var(--text);text-align:center;padding:24px;font-size:16px;gap:12px}
+  #rotate .ic{font-size:44px}
+  @media (orientation:portrait){ #vr.on #rotate{display:flex} }
+</style>
+</head>
+<body>
+
+<section id="setup">
+  <div class="wrap">
+    <h1>Visor 360 para Cardboard</h1>
+    <p class="sub">Pega un video 360° de YouTube. Se divide la pantalla en dos y la vista sigue el movimiento de tu cabeza.</p>
+
+    <label for="url">Enlace del video</label>
+    <input id="url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+           placeholder="https://youtu.be/...">
+
+    <label>Campo de visión</label>
+    <div class="row"><input id="fov" type="range" min="60" max="120" step="1" value="90"><span class="val" id="fovV">90°</span></div>
+
+    <label>Ajuste a tus lentes</label>
+    <div class="row"><input id="gap" type="range" min="0" max="20" step="1" value="0"><span class="val" id="gapV">0</span></div>
+
+    <label class="check"><input id="inv" type="checkbox"> Invertir giro horizontal</label>
+    <label class="check"><input id="roll" type="checkbox" checked> Compensar inclinación de cabeza</label>
+
+    <button class="primary" id="go">Entrar a VR</button>
+    <div class="err" id="err"></div>
+
+    <div class="tips">
+      <b>Cómo usarlo</b>
+      <ol>
+        <li>Toca <b>Entrar a VR</b> y acepta el permiso de movimiento.</li>
+        <li>Gira el iPhone en horizontal y mételo al Cardboard.</li>
+        <li>Mira al frente y toca la pantalla → <b>Recentrar</b>.</li>
+        <li>Toca la pantalla en cualquier momento para el menú.</li>
+      </ol>
+      <p>Para pantalla completa real: en Safari, <b>Compartir → Agregar a pantalla de inicio</b> y ábrelo desde el ícono.</p>
+    </div>
+  </div>
+</section>
+
+<section id="vr">
+  <div class="eye l"><div class="frame"><div id="pL"></div></div></div>
+  <div class="eye r"><div class="frame"><div id="pR"></div></div></div>
+  <div class="divider"></div>
+  <div id="tap"></div>
+  <div id="hud">
+    <button id="bPlay">Pausa</button>
+    <button id="bCenter" class="gold">Recentrar</button>
+    <button id="bSound">Activar sonido</button>
+    <button id="bBack">−10 s</button>
+    <button id="bFwd">+10 s</button>
+    <button id="bExit">Salir</button>
+  </div>
+  <div id="toast"></div>
+  <div id="rotate"><div class="ic">⟲</div>Gira el teléfono en horizontal</div>
+</section>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+
+  /* ---------- preferencias guardadas ---------- */
+  const store = {
+    get(k, d){ try{ const v = localStorage.getItem('v360_' + k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+    set(k, v){ try{ localStorage.setItem('v360_' + k, JSON.stringify(v)); }catch(e){} }
+  };
+  $('#url').value = store.get('url', '');
+  $('#fov').value = store.get('fov', 90);
+  $('#gap').value = store.get('gap', 0);
+  $('#inv').checked = store.get('inv', false);
+  $('#roll').checked = store.get('roll', true);
+  const syncLabels = () => {
+    $('#fovV').textContent = $('#fov').value + '°';
+    $('#gapV').textContent = $('#gap').value;
+    document.documentElement.style.setProperty('--inset', $('#gap').value + '%');
+  };
+  $('#fov').oninput = syncLabels; $('#gap').oninput = syncLabels; syncLabels();
+
+  /* ---------- utilidades ---------- */
+  function parseId(input){
+    input = (input || '').trim();
+    if (/^[\w-]{11}$/.test(input)) return input;
+    try{
+      const u = new URL(input);
+      if (u.hostname.includes('youtu.be')) return u.pathname.slice(1, 12);
+      const v = u.searchParams.get('v'); if (v) return v.slice(0, 11);
+      const m = u.pathname.match(/\/(embed|shorts|live|v)\/([\w-]{11})/); if (m) return m[2];
+    }catch(e){}
+    return null;
+  }
+  let toastT;
+  function toast(msg, ms = 3500){
+    const t = $('#toast'); t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', ms);
+  }
+  function err(msg){ $('#err').textContent = msg; }
+
+  let ytPromise;
+  function loadYT(){
+    if (window.YT && YT.Player) return Promise.resolve();
+    if (ytPromise) return ytPromise;
+    ytPromise = new Promise((res, rej) => {
+      window.onYouTubeIframeAPIReady = res;
+      const s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      s.onerror = () => rej(new Error('No se pudo cargar YouTube.'));
+      setTimeout(() => rej(new Error('YouTube tardó demasiado en cargar. Revisa tu conexión.')), 12000);
+      document.head.appendChild(s);
+    });
+    return ytPromise;
+  }
+
+  /* ---------- estado ---------- */
+  const S = { L:null, R:null, ready:0, fov:90, inv:false, roll:true, offset:0, rawYaw:0,
+              o:{a:0,b:0,g:0,has:false}, last:{y:999,p:999,r:999}, loop:null, sync:null, wake:null, checked360:false };
+
+  /* ---------- orientación → yaw / pitch / roll ---------- */
+  function qEulerYXZ(x, y, z){
+    const c1=Math.cos(x/2), c2=Math.cos(y/2), c3=Math.cos(z/2), s1=Math.sin(x/2), s2=Math.sin(y/2), s3=Math.sin(z/2);
+    return [ s1*c2*c3 + c1*s2*s3, c1*s2*c3 - s1*c2*s3, c1*c2*s3 - s1*s2*c3, c1*c2*c3 + s1*s2*s3 ];
+  }
+  function qMul(a, b){
+    const [ax,ay,az,aw]=a, [bx,by,bz,bw]=b;
+    return [ ax*bw + aw*bx + ay*bz - az*by,
+             ay*bw + aw*by + az*bx - ax*bz,
+             az*bw + aw*bz + ax*by - ay*bx,
+             aw*bw - ax*bx - ay*by - az*bz ];
+  }
+  const Q1 = [-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)];
+  function screenAngle(){
+    if (typeof window.orientation === 'number') return window.orientation;
+    if (screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
+    return 0;
+  }
+  function viewAngles(){
+    const {a,b,g} = S.o, so = screenAngle() * D2R;
+    let q = qEulerYXZ(b*D2R, a*D2R, -g*D2R);
+    q = qMul(q, Q1);
+    q = qMul(q, [0, 0, Math.sin(-so/2), Math.cos(-so/2)]);
+    const [x,y,z,w] = q, x2=x+x, y2=y+y, z2=z+z;
+    const xx=x*x2, xy=x*y2, xz=x*z2, yy=y*y2, yz=y*z2, zz=z*z2, wx=w*x2, wy=w*y2, wz=w*z2;
+    const m11=1-(yy+zz), m13=xz+wy, m21=xy+wz, m22=1-(xx+zz), m23=yz-wx, m31=xz-wy, m33=1-(xx+yy);
+    const pitch = Math.asin(-Math.max(-1, Math.min(1, m23)));
+    let yaw, roll;
+    if (Math.abs(m23) < 0.9999){ yaw = Math.atan2(m13, m33); roll = Math.atan2(m21, m22); }
+    else { yaw = Math.atan2(-m31, m11); roll = 0; }
+    return { yaw: yaw*R2D, pitch: pitch*R2D, roll: roll*R2D };
+  }
+  const norm360 = v => ((v % 360) + 360) % 360;
+
+  function onOrient(e){
+    if (e.alpha === null) return;
+    S.o = { a:e.alpha, b:e.beta, g:e.gamma, has:true };
+  }
+
+  function tick(){
+    if (S.o.has && S.ready === 2){
+      const v = viewAngles();
+      S.rawYaw = S.inv ? -v.yaw : v.yaw;
+      const yaw = norm360(S.rawYaw + S.offset);
+      const pitch = Math.max(-90, Math.min(90, v.pitch));
+      const roll = S.roll ? Math.max(-180, Math.min(180, v.roll)) : 0;
+      const d = Math.abs(yaw - S.last.y) + Math.abs(pitch - S.last.p) + Math.abs(roll - S.last.r);
+      if (d > 0.25){
+        const props = { yaw, pitch, roll, fov:S.fov, enableOrientationSensor:false };
+        try{ S.L.setSphericalProperties(props); S.R.setSphericalProperties(props); }catch(e){}
+        S.last = { y:yaw, p:pitch, r:roll };
+      }
+    }
+    S.loop = setTimeout(() => requestAnimationFrame(tick), 30);
+  }
+
+  /* ---------- sincronía de ambos ojos ---------- */
+  function syncEyes(){
+    if (S.ready < 2) return;
+    try{
+      const sL = S.L.getPlayerState(), sR = S.R.getPlayerState();
+      if (sL === 1 && sR !== 1 && sR !== 3) S.R.playVideo();
+      if (sL === 2 && sR === 1) S.R.pauseVideo();
+      const tL = S.L.getCurrentTime(), tR = S.R.getCurrentTime();
+      if (sL === 1 && Math.abs(tL - tR) > 0.35) S.R.seekTo(tL + 0.05, true);
+      $('#bPlay').textContent = sL === 1 ? 'Pausa' : 'Reproducir';
+      if (!S.checked360 && sL === 1){
+        S.checked360 = true;
+        const sp = S.L.getSphericalProperties && S.L.getSphericalProperties();
+        if (!sp || Object.keys(sp).length === 0) toast('Este video no parece ser 360°. Prueba con otro.', 6000);
+      }
+    }catch(e){}
+  }
+
+  /* ---------- reproductores ---------- */
+  function makePlayer(el, id){
+    return new YT.Player(el, {
+      videoId: id, width:'100%', height:'100%',
+      playerVars: { playsinline:1, controls:0, rel:0, modestbranding:1, disablekb:1, fs:0,
+                    iv_load_policy:3, autoplay:1, mute:1, origin: location.origin },
+      events: {
+        onReady: ev => {
+          const p = ev.target;
+          p.mute();
+          try{ p.setSphericalProperties({ fov:S.fov, enableOrientationSensor:false }); }catch(e){}
+          p.playVideo();
+          S.ready++;
+        },
+        onError: ev => {
+          const c = ev.data;
+          const msg = (c === 101 || c === 150 || c === 153)
+            ? 'El dueño de este video no permite verlo fuera de YouTube. Prueba con otro.'
+            : (c === 100 ? 'Video no encontrado o privado.' : 'Error al cargar el video (' + c + ').');
+          toast(msg, 7000);
+        }
+      }
+    });
+  }
+
+  async function wakeOn(){
+    try{ if ('wakeLock' in navigator) S.wake = await navigator.wakeLock.request('screen'); }catch(e){}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && $('#vr').classList.contains('on')) wakeOn();
+  });
+
+  /* ---------- entrar / salir ---------- */
+  window.addEventListener('error', e => err('Error: ' + (e.message || 'desconocido')));
+  window.addEventListener('unhandledrejection', e => err('Error: ' + ((e.reason && e.reason.message) || e.reason || 'desconocido')));
+  if (location.protocol !== 'https:') err('Esta página debe abrirse desde un enlace https:// en Safari. Desde una vista previa de archivo no funciona.');
+
+  $('#go').onclick = async () => {
+    err('');
+    const id = parseId($('#url').value);
+    if (!id){ err('Pega un enlace válido de YouTube.'); return; }
+    $('#go').textContent = 'Cargando…';
+    setTimeout(() => { $('#go').textContent = 'Entrar a VR'; }, 4000);
+
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+      try{
+        const r = await DeviceOrientationEvent.requestPermission();
+        if (r !== 'granted'){ err('Sin permiso de movimiento no se puede seguir tu cabeza. Cierra Safari por completo y vuelve a intentarlo.'); return; }
+      }catch(e){ err('No se pudo pedir el permiso de movimiento. Abre la página con https://'); return; }
+    }
+
+    S.fov = +$('#fov').value; S.inv = $('#inv').checked; S.roll = $('#roll').checked;
+    store.set('url', $('#url').value.trim()); store.set('fov', S.fov); store.set('gap', +$('#gap').value);
+    store.set('inv', S.inv); store.set('roll', S.roll);
+
+    try{ await loadYT(); }catch(e){ ytPromise = null; err(e.message); return; }
+
+    S.ready = 0; S.checked360 = false; S.offset = 0; S.last = {y:999,p:999,r:999};
+    $('#setup').style.display = 'none';
+    $('#vr').classList.add('on');
+    S.L = makePlayer('pL', id);
+    S.R = makePlayer('pR', id);
+    window.addEventListener('deviceorientation', onOrient);
+    tick();
+    S.sync = setInterval(syncEyes, 1200);
+    wakeOn();
+    toast('Mira al frente y toca la pantalla → Recentrar', 4500);
+  };
+
+  function exitVR(){
+    clearTimeout(S.loop); clearInterval(S.sync);
+    window.removeEventListener('deviceorientation', onOrient);
+    try{ S.L && S.L.destroy(); S.R && S.R.destroy(); }catch(e){}
+    S.L = S.R = null; S.ready = 0;
+    $('.eye.l .frame').innerHTML = '<div id="pL"></div>';
+    $('.eye.r .frame').innerHTML = '<div id="pR"></div>';
+    try{ S.wake && S.wake.release(); }catch(e){}
+    $('#hud').classList.remove('on');
+    $('#vr').classList.remove('on');
+    $('#setup').style.display = 'flex';
+  }
+
+  /* ---------- menú ---------- */
+  let hudT;
+  $('#tap').onclick = () => {
+    const h = $('#hud'); h.classList.toggle('on');
+    clearTimeout(hudT); if (h.classList.contains('on')) hudT = setTimeout(() => h.classList.remove('on'), 6000);
+  };
+  $('#hud').onclick = () => { clearTimeout(hudT); hudT = setTimeout(() => $('#hud').classList.remove('on'), 6000); };
+
+  $('#bPlay').onclick = () => {
+    if (S.ready < 2) return;
+    if (S.L.getPlayerState() === 1){ S.L.pauseVideo(); S.R.pauseVideo(); $('#bPlay').textContent = 'Reproducir'; }
+    else { S.L.playVideo(); S.R.playVideo(); $('#bPlay').textContent = 'Pausa'; }
+  };
+  $('#bCenter').onclick = () => { S.offset = -S.rawYaw; S.last = {y:999,p:999,r:999}; toast('Vista centrada', 1500); };
+  $('#bSound').onclick = () => {
+    if (S.ready < 2) return;
+    if (S.L.isMuted()){ S.L.unMute(); S.L.setVolume(100); S.L.playVideo(); $('#bSound').textContent = 'Silenciar'; }
+    else { S.L.mute(); $('#bSound').textContent = 'Activar sonido'; }
+  };
+  const jump = s => { if (S.ready < 2) return; const t = Math.max(0, S.L.getCurrentTime() + s); S.L.seekTo(t, true); S.R.seekTo(t, true); };
+  $('#bBack').onclick = () => jump(-10);
+  $('#bFwd').onclick = () => jump(10);
+  $('#bExit').onclick = exitVR;
+})();
+</script>
+</body>
+</html>
