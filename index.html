@@ -66,7 +66,7 @@
   #vr.on{display:block}
   #ytEyes{position:absolute;inset:0;display:flex}
   .eye{position:relative;width:50%;height:100%;overflow:hidden;background:#000}
-  .frame{position:absolute;top:0;bottom:0;overflow:hidden}
+  .frame{position:absolute;top:0;bottom:0;overflow:hidden;-webkit-mask-image:radial-gradient(circle closest-side at 50% 50%,#000 93%,transparent 100%);mask-image:radial-gradient(circle closest-side at 50% 50%,#000 93%,transparent 100%)}
   .frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
   #gl{position:absolute;inset:0;width:100%;height:100%;display:block}
   .divider{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:#000;z-index:3}
@@ -154,8 +154,8 @@
     <label>Separación de lentes</label>
     <div class="row"><input id="gap" type="range" min="55" max="72" step="1" value="64"><span class="val" id="gapV">64 mm</span></div>
 
-    <label>Zoom en YouTube</label>
-    <div class="row"><input id="fov" type="range" min="60" max="120" step="1" value="90"><span class="val" id="fovV">90°</span></div>
+    <label>Ajuste fino de tamaño (YouTube)</label>
+    <div class="row"><input id="fov" type="range" min="-20" max="20" step="1" value="0"><span class="val" id="fovV">0</span></div>
 
     <label class="check"><input id="inv" type="checkbox"> Invertir giro horizontal</label>
     <label class="check"><input id="roll" type="checkbox" checked> Compensar inclinación de cabeza</label>
@@ -225,7 +225,7 @@
     const fromLink = qs.get('url') || qs.get('v');
     if (fromLink) $('#url').value = fromLink;
   }catch(e){}
-  $('#fov').value = store.get('fov', 90);
+  $('#fov').value = store.get('fovAdj', 0);
   // perfiles ópticos oficiales de Google Cardboard (distorsión k1/k2, distancia pantalla-lente, separación)
   const VIEWERS = {
     v2:   { k1:0.34,  k2:0.55,  s2l:39.3, ipd:64 },
@@ -239,7 +239,7 @@
   $('#inv').checked = store.get('inv', false);
   $('#roll').checked = store.get('roll', true);
   $('#layout').value = store.get('layout', 'mono');
-  const syncLabels = () => { $('#fovV').textContent = $('#fov').value + '°'; $('#gapV').textContent = $('#gap').value + ' mm'; };
+  const syncLabels = () => { $('#fovV').textContent = (+$('#fov').value > 0 ? '+' : '') + $('#fov').value; $('#gapV').textContent = $('#gap').value + ' mm'; };
   $('#fov').oninput = syncLabels; $('#gap').oninput = syncLabels; syncLabels();
 
   let mode = 'yt';
@@ -427,7 +427,7 @@
 
   /* ---------- estado ---------- */
   const S = {
-    mode:'yt', fov:90, gap:64, viewer:'v2', inv:false, roll:true, layout:'mono',
+    mode:'yt', fov:0, gap:64, viewer:'v2', inv:false, roll:true, layout:'mono',
     o:{a:0,b:0,g:0}, oCount:0, offset:0, rawYaw:0, ang:{yaw:0,pitch:0,roll:0},
     loop:null, sync:null, wake:null, dbg:false,
     L:null, R:null, ready:0, last:{y:999,p:999,r:999}, checked360:false, syncs:0,
@@ -488,7 +488,18 @@
     return ytPromise;
   }
   // ~6.42 px CSS por mm en iPhone (163 pt por pulgada)
-  const PXMM = 163 / 25.4;
+  const PXMM = 154 / 25.4;
+  // campo de visión que corresponde a lo que se ve por la lupa (igual que el cálculo de Cardboard)
+  function ytFov(){
+    const v = VIEWERS[S.viewer] || VIEWERS.v2;
+    const fw = Math.min(S.gap * PXMM, window.innerWidth / 2);
+    const fh = window.innerHeight;
+    const halfMm = Math.max(fw, fh) / 2 / PXMM;
+    const t = halfMm / v.s2l, r2 = t * t;
+    const td = t * (1 + v.k1 * r2 + v.k2 * r2 * r2);
+    const fov = 2 * Math.atan(td) * R2D + S.fov;
+    return Math.max(30, Math.min(120, fov));
+  }
   function layoutYT(){
     // cada ojo se centra en el centro de su lente, como en la app de YouTube
     const W = window.innerWidth, half = W / 2;
@@ -522,7 +533,7 @@
     const yaw = S.ang.yaw, pitch = S.ang.pitch, roll = S.ang.roll;
     const d = Math.abs(yaw - S.last.y) + Math.abs(pitch - S.last.p) + Math.abs(roll - S.last.r);
     if (!force && d < 0.25) return;
-    const props = { yaw, pitch, roll, fov:S.fov, enableOrientationSensor:false };
+    const props = { yaw, pitch, roll, fov:ytFov(), enableOrientationSensor:false };
     try{ S.L.setSphericalProperties(props); S.R.setSphericalProperties(props); }catch(e){}
     S.last = { y:yaw, p:pitch, r:roll };
   }
@@ -726,7 +737,7 @@
 
     S.mode = mode; S.fov = +$('#fov').value; S.gap = +$('#gap').value; S.viewer = $('#viewer').value;
     S.inv = $('#inv').checked; S.roll = $('#roll').checked; S.layout = $('#layout').value;
-    store.set('fov', S.fov); store.set('ipd', S.gap); store.set('viewer2', S.viewer); store.set('inv', S.inv); store.set('roll', S.roll); store.set('layout', S.layout);
+    store.set('fovAdj', S.fov); store.set('ipd', S.gap); store.set('viewer2', S.viewer); store.set('inv', S.inv); store.set('roll', S.roll); store.set('layout', S.layout);
     S.offset = 0; S.oCount = 0; S.syncs = 0; S.wantPlay = true; S.autoCentered = false;
     window.addEventListener('deviceorientation', onOrient);
 
