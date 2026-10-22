@@ -27,6 +27,10 @@
   input[type=text]{width:100%;padding:14px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);
     color:var(--text);font-size:16px;outline:none}
   input[type=text]:focus{border-color:var(--accent)}
+  input[type=text]{flex:1;min-width:0;-webkit-user-select:text;user-select:text}
+  .paste{flex:none;padding:14px 16px;border-radius:12px;border:1px solid var(--accent);background:transparent;
+    color:var(--accent);font-size:16px;font-weight:600}
+  .paste:active{opacity:.7}
   .row{display:flex;align-items:center;gap:12px}
   input[type=range]{flex:1;accent-color:var(--accent)}
   .val{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
@@ -73,8 +77,11 @@
     <p class="sub">Pega un video 360° de YouTube. Se divide la pantalla en dos y la vista sigue el movimiento de tu cabeza.</p>
 
     <label for="url">Enlace del video</label>
-    <input id="url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
-           placeholder="https://youtu.be/...">
+    <div class="row">
+      <input id="url" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+             placeholder="https://youtu.be/...">
+      <button id="paste" class="paste" type="button">Pegar</button>
+    </div>
 
     <label>Campo de visión</label>
     <div class="row"><input id="fov" type="range" min="60" max="120" step="1" value="90"><span class="val" id="fovV">90°</span></div>
@@ -129,6 +136,23 @@
     set(k, v){ try{ localStorage.setItem('v360_' + k, JSON.stringify(v)); }catch(e){} }
   };
   $('#url').value = store.get('url', '');
+  try{
+    const qs = new URLSearchParams(location.search);
+    const fromLink = qs.get('url') || qs.get('v');
+    if (fromLink) $('#url').value = fromLink;
+  }catch(e){}
+
+  $('#paste').onclick = async () => {
+    err('');
+    try{
+      const t = await navigator.clipboard.readText();
+      if (t && t.trim()){ $('#url').value = t.trim(); }
+      else err('Tu portapapeles está vacío. Copia primero el enlace en YouTube: Compartir → Copiar enlace.');
+    }catch(e){
+      $('#url').focus();
+      err('Safari no dejó leer el portapapeles. Mantén presionado el campo y elige "Pegar".');
+    }
+  };
   $('#fov').value = store.get('fov', 90);
   $('#gap').value = store.get('gap', 0);
   $('#inv').checked = store.get('inv', false);
