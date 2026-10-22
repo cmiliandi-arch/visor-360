@@ -66,8 +66,13 @@
   #vr.on{display:block}
   #ytEyes{position:absolute;inset:0;display:flex}
   .eye{position:relative;width:50%;height:100%;overflow:hidden;background:#000}
-  .frame{position:absolute;top:0;bottom:0;overflow:hidden;-webkit-mask-image:radial-gradient(circle closest-side at 50% 50%,#000 93%,transparent 100%);mask-image:radial-gradient(circle closest-side at 50% 50%,#000 93%,transparent 100%)}
+  .frame{position:absolute;top:0;bottom:0;width:min(var(--ipdpx,388px),100%);overflow:hidden;-webkit-mask-image:radial-gradient(circle closest-side at 50% 50%,#000 93%,transparent 100%);mask-image:radial-gradient(circle closest-side at 50% 50%,#000 93%,transparent 100%)}
   .frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+  /* cada ojo pegado al centro de la pantalla: el centro de su lente queda a media separación del centro */
+  #fL{right:0} #fR{left:0}
+  /* video plano (no 360): pantalla de cine centrada dentro de cada lente */
+  #ytEyes.flat .frame{-webkit-mask-image:none;mask-image:none}
+  #ytEyes.flat .frame iframe{inset:auto;left:6%;width:88%;height:auto;aspect-ratio:16/9;top:50%;transform:translateY(-50%)}
   #gl{position:absolute;inset:0;width:100%;height:100%;display:block}
   .divider{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:#000;z-index:3}
   #tap{position:absolute;inset:0;z-index:4}
@@ -501,13 +506,10 @@
     return Math.max(30, Math.min(120, fov));
   }
   function layoutYT(){
-    // cada ojo se centra en el centro de su lente, como en la app de YouTube
-    const W = window.innerWidth, half = W / 2;
-    const ipdPx = Math.min(S.gap * PXMM, W);
-    const fw = Math.min(ipdPx, half);
-    $('#fL').style.left = (half - fw) + 'px'; $('#fL').style.width = fw + 'px'; $('#fL').style.right = 'auto';
-    $('#fR').style.left = '0px'; $('#fR').style.width = fw + 'px'; $('#fR').style.right = 'auto';
+    // ancho de cada ojo = separación de lentes; el CSS lo mantiene correcto aunque gires el teléfono
+    $('#ytEyes').style.setProperty('--ipdpx', (S.gap * PXMM).toFixed(1) + 'px');
   }
+
   function makePlayer(el, id){
     return new YT.Player(el, {
       videoId: id, width:'100%', height:'100%',
@@ -561,7 +563,9 @@
       if (!S.checked360 && sL === 1){
         S.checked360 = true;
         const sp = S.L.getSphericalProperties && S.L.getSphericalProperties();
-        if (!sp || Object.keys(sp).length === 0) toast('YouTube no reporta este video como 360°. Prueba con otro o usa el modo Video propio.', 7000);
+        const flat = !sp || Object.keys(sp).length === 0;
+        $('#ytEyes').classList.toggle('flat', flat);
+        if (flat) toast('Este video no es 360°: se muestra como pantalla de cine. Para girar la vista elige uno que diga 360 o VR.', 6000);
       }
       applySpherical(true);
     }catch(e){}
@@ -714,7 +718,10 @@
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && $('#vr').classList.contains('on')) wakeOn();
   });
-  window.addEventListener('resize', () => { layoutYT(); resizeGL(); });
+  const relayout = () => { layoutYT(); resizeGL(); };
+  window.addEventListener('resize', relayout);
+  window.addEventListener('orientationchange', () => { relayout(); setTimeout(relayout, 300); setTimeout(relayout, 800); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', relayout);
 
   /* ---------- entrar ---------- */
   $('#go').onclick = async () => {
@@ -747,7 +754,7 @@
       try{ await loadYT(); }catch(e){ ytPromise = null; $('#go').textContent = 'Entrar a VR'; err(e.message); return; }
       $('#go').textContent = 'Entrar a VR';
       S.ready = 0; S.checked360 = false; S.last = {y:999,p:999,r:999};
-      $('#ytEyes').hidden = false; $('#gl').hidden = true;
+      $('#ytEyes').hidden = false; $('#ytEyes').classList.remove('flat'); $('#gl').hidden = true;
       showVR(); layoutYT();
       S.L = makePlayer('pL', id); S.R = makePlayer('pR', id);
       S.sync = setInterval(syncYT, 1000);
@@ -765,7 +772,10 @@
     }
     S.loop = requestAnimationFrame(frame);
     wakeOn();
-    toast('Si la vista no quedó al frente, toca la pantalla → Recentrar', 4500);
+    const standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    if (!standalone && /iPhone|iPad/.test(navigator.userAgent))
+      toast('Para que cuadre perfecto: Compartir → Agregar a pantalla de inicio, y ábrelo desde ese ícono.', 7000);
+    else toast('Si la vista no quedó al frente, toca la pantalla → Recentrar', 4500);
   };
   function showVR(){ $('#setup').style.display = 'none'; $('#vr').classList.add('on'); }
 
