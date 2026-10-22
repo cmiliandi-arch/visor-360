@@ -522,6 +522,7 @@
           S.ready++;
           if (S.ready === 2) startBothYT();
         },
+        onStateChange: () => { if (S.ready === 2) syncYT(); },
         onError: ev => {
           const c = ev.data;
           toast((c === 101 || c === 150 || c === 153)
@@ -757,7 +758,7 @@
       $('#ytEyes').hidden = false; $('#ytEyes').classList.remove('flat'); $('#gl').hidden = true;
       showVR(); layoutYT();
       S.L = makePlayer('pL', id); S.R = makePlayer('pR', id);
-      S.sync = setInterval(syncYT, 1000);
+      S.sync = setInterval(syncYT, 500);
       $('#bSound').textContent = 'Activar sonido';
     } else {
       S.url = URL.createObjectURL(pickedFile);
