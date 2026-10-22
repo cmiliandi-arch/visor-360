@@ -144,11 +144,18 @@
       <p class="note">Recomendado para tus propios videos: imagen idéntica en los dos ojos, giro preciso y soporte para 360 en 3D.</p>
     </div>
 
-    <label>Campo de visión</label>
-    <div class="row"><input id="fov" type="range" min="60" max="120" step="1" value="90"><span class="val" id="fovV">90°</span></div>
+    <label for="viewer">Tipo de visor</label>
+    <select id="viewer">
+      <option value="v2">Cardboard 2 (con botón, el más común)</option>
+      <option value="v1">Cardboard 1 (original, con imán)</option>
+      <option value="none">Sin corrección de lente</option>
+    </select>
 
-    <label>Ajuste a tus lentes</label>
-    <div class="row"><input id="gap" type="range" min="0" max="20" step="1" value="0"><span class="val" id="gapV">0</span></div>
+    <label>Separación de lentes</label>
+    <div class="row"><input id="gap" type="range" min="55" max="72" step="1" value="64"><span class="val" id="gapV">64 mm</span></div>
+
+    <label>Zoom en YouTube</label>
+    <div class="row"><input id="fov" type="range" min="60" max="120" step="1" value="90"><span class="val" id="fovV">90°</span></div>
 
     <label class="check"><input id="inv" type="checkbox"> Invertir giro horizontal</label>
     <label class="check"><input id="roll" type="checkbox" checked> Compensar inclinación de cabeza</label>
@@ -219,11 +226,20 @@
     if (fromLink) $('#url').value = fromLink;
   }catch(e){}
   $('#fov').value = store.get('fov', 90);
-  $('#gap').value = store.get('gap', 0);
+  // perfiles ópticos oficiales de Google Cardboard (distorsión k1/k2, distancia pantalla-lente, separación)
+  const VIEWERS = {
+    v2:   { k1:0.34,  k2:0.55,  s2l:39.3, ipd:64 },
+    v1:   { k1:0.441, k2:0.156, s2l:42.0, ipd:60 },
+    none: { k1:0,     k2:0,     s2l:39.3, ipd:64 }
+  };
+  $('#viewer').value = store.get('viewer2', 'v2');
+  const savedIpd = store.get('ipd', null);
+  $('#gap').value = savedIpd || VIEWERS[$('#viewer').value].ipd;
+  $('#viewer').onchange = () => { $('#gap').value = VIEWERS[$('#viewer').value].ipd; syncLabels(); };
   $('#inv').checked = store.get('inv', false);
   $('#roll').checked = store.get('roll', true);
   $('#layout').value = store.get('layout', 'mono');
-  const syncLabels = () => { $('#fovV').textContent = $('#fov').value + '°'; $('#gapV').textContent = $('#gap').value; };
+  const syncLabels = () => { $('#fovV').textContent = $('#fov').value + '°'; $('#gapV').textContent = $('#gap').value + ' mm'; };
   $('#fov').oninput = syncLabels; $('#gap').oninput = syncLabels; syncLabels();
 
   let mode = 'yt';
@@ -411,7 +427,7 @@
 
   /* ---------- estado ---------- */
   const S = {
-    mode:'yt', fov:90, gap:0, inv:false, roll:true, layout:'mono',
+    mode:'yt', fov:90, gap:64, viewer:'v2', inv:false, roll:true, layout:'mono',
     o:{a:0,b:0,g:0}, oCount:0, offset:0, rawYaw:0, ang:{yaw:0,pitch:0,roll:0},
     loop:null, sync:null, wake:null, dbg:false,
     L:null, R:null, ready:0, last:{y:999,p:999,r:999}, checked360:false, syncs:0,
@@ -471,19 +487,25 @@
     });
     return ytPromise;
   }
+  // ~6.42 px CSS por mm en iPhone (163 pt por pulgada)
+  const PXMM = 163 / 25.4;
   function layoutYT(){
-    const inset = S.gap / 100 * (window.innerWidth / 2);
-    $('#fL').style.left = inset + 'px'; $('#fL').style.right = '0';
-    $('#fR').style.left = '0'; $('#fR').style.right = inset + 'px';
+    // cada ojo se centra en el centro de su lente, como en la app de YouTube
+    const W = window.innerWidth, half = W / 2;
+    const ipdPx = Math.min(S.gap * PXMM, W);
+    const fw = Math.min(ipdPx, half);
+    $('#fL').style.left = (half - fw) + 'px'; $('#fL').style.width = fw + 'px'; $('#fL').style.right = 'auto';
+    $('#fR').style.left = '0px'; $('#fR').style.width = fw + 'px'; $('#fR').style.right = 'auto';
   }
   function makePlayer(el, id){
     return new YT.Player(el, {
       videoId: id, width:'100%', height:'100%',
       playerVars: { playsinline:1, controls:0, rel:0, modestbranding:1, disablekb:1, fs:0,
-                    iv_load_policy:3, autoplay:0, mute:1, origin: location.origin },
+                    iv_load_policy:3, cc_load_policy:0, autoplay:0, mute:1, origin: location.origin },
       events: {
         onReady: ev => {
           ev.target.mute();
+          try{ ev.target.unloadModule('captions'); ev.target.unloadModule('cc'); }catch(e){}
           S.ready++;
           if (S.ready === 2) startBothYT();
         },
@@ -534,16 +556,15 @@
     }catch(e){}
   }
 
-  /* ---------- Video propio (WebGL) ---------- */
+  /* ---------- Video propio (WebGL con óptica Cardboard) ---------- */
   function buildGL(){
     const canvas = $('#gl');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias:false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.autoClear = false;
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(S.fov, 1, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(90, 1, 0.1, 100);
     const tex = new THREE.VideoTexture(S.video);
-    tex.encoding = THREE.sRGBEncoding;
     tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     function sphere(eye){
       const g = new THREE.SphereGeometry(50, 64, 40);
@@ -559,34 +580,86 @@
       scene.add(m); return m;
     }
     const mL = sphere('L'), mR = S.layout === 'mono' ? mL : sphere('R');
-    S.gl = { renderer, scene, camera, mL, mR, tex };
+    const rtOpts = { minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, depthBuffer:true };
+    const rtL = new THREE.WebGLRenderTarget(1024, 1024, rtOpts);
+    const rtR = new THREE.WebGLRenderTarget(1024, 1024, rtOpts);
+    // pasada de distorsión de barril (pre-corrige la lupa del Cardboard)
+    const post = new THREE.ShaderMaterial({
+      uniforms: { map:{value:null}, vpOrigin:{value:new THREE.Vector2()}, lens:{value:new THREE.Vector2()},
+                  pxmm:{value:1}, s2l:{value:39.3}, k1:{value:0}, k2:{value:0}, tanMax:{value:1} },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: [
+        'uniform sampler2D map; uniform vec2 vpOrigin; uniform vec2 lens;',
+        'uniform float pxmm; uniform float s2l; uniform float k1; uniform float k2; uniform float tanMax;',
+        'void main(){',
+        '  vec2 p = (gl_FragCoord.xy - vpOrigin - lens) / pxmm / s2l;',
+        '  float r2 = dot(p, p);',
+        '  vec2 t = p * (1.0 + k1 * r2 + k2 * r2 * r2);',
+        '  vec2 uv = t / (2.0 * tanMax) + 0.5;',
+        '  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }',
+        '  gl_FragColor = texture2D(map, uv);',
+        '}'
+      ].join('\n'),
+      depthTest:false, depthWrite:false
+    });
+    const postScene = new THREE.Scene();
+    postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), post));
+    const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    S.gl = { renderer, scene, camera, mL, mR, tex, rtL, rtR, post, postScene, postCam, tanMax:1 };
     resizeGL();
+  }
+  function lensGeom(){
+    const W = window.innerWidth, H = window.innerHeight, half = W / 2;
+    const v = VIEWERS[S.viewer] || VIEWERS.v2;
+    const ipdPx = S.gap * PXMM;
+    // centro de cada lente medido dentro de su mitad de pantalla (px CSS)
+    const lensL = { x: half - ipdPx / 2, y: H / 2 };
+    const lensR = { x: ipdPx / 2, y: H / 2 };
+    return { W, H, half, v, lensL, lensR };
   }
   function resizeGL(){
     if (!S.gl) return;
     S.gl.renderer.setSize(window.innerWidth, window.innerHeight, false);
+    // ángulo máximo visible por ojo, ya distorsionado, para dimensionar el render
+    const { half, H, v, lensL } = lensGeom();
+    const xs = [ -lensL.x, half - lensL.x ], ys = [ -lensL.y, H - lensL.y ];
+    let m = 0;
+    for (const x of xs) for (const y of ys){
+      const px = x / PXMM / v.s2l, py = y / PXMM / v.s2l, r2 = px*px + py*py, f = 1 + v.k1*r2 + v.k2*r2*r2;
+      m = Math.max(m, Math.abs(px * f), Math.abs(py * f));
+    }
+    S.gl.tanMax = Math.min(Math.max(m, 0.3), 3);
   }
   function renderGL(){
-    const { renderer, scene, camera, mL, mR } = S.gl;
-    const W = window.innerWidth, H = window.innerHeight, half = W / 2;
-    const inset = S.gap / 100 * half, ew = half - inset;
+    const g = S.gl, { renderer, scene, camera, mL, mR } = g;
+    const { W, H, half, v, lensL, lensR } = lensGeom();
+    const pr = renderer.getPixelRatio();
     // orientación de cámara
     const a = quatAngles(deviceQuat());
     const yaw = (S.inv ? -a.yaw : a.yaw) + S.offset;
     const q = qEulerYXZ(a.pitch * D2R, yaw * D2R, S.roll ? a.roll * D2R : 0);
     camera.quaternion.set(q[0], q[1], q[2], q[3]);
-    camera.fov = S.fov; camera.aspect = ew / H; camera.updateProjectionMatrix();
+    camera.fov = 2 * Math.atan(g.tanMax) * R2D; camera.aspect = 1; camera.updateProjectionMatrix();
+    // 1) escena de cada ojo a su textura
+    renderer.setScissorTest(false);
+    mL.visible = true; if (mR !== mL) mR.visible = false;
+    renderer.setRenderTarget(g.rtL); renderer.clear(); renderer.render(scene, camera);
+    if (mR !== mL){ mL.visible = false; mR.visible = true;
+      renderer.setRenderTarget(g.rtR); renderer.clear(); renderer.render(scene, camera); }
+    renderer.setRenderTarget(null);
+    // 2) pantalla: cada mitad con distorsión de lente centrada en su lente
     renderer.setScissorTest(true);
     renderer.setClearColor(0x000000, 1);
     renderer.setViewport(0, 0, W, H); renderer.setScissor(0, 0, W, H); renderer.clear();
-    // ojo izquierdo
-    mL.visible = true; if (mR !== mL) mR.visible = false;
-    renderer.setViewport(inset, 0, ew, H); renderer.setScissor(inset, 0, ew, H);
-    renderer.render(scene, camera);
-    // ojo derecho
-    if (mR !== mL){ mL.visible = false; mR.visible = true; }
-    renderer.setViewport(half, 0, ew, H); renderer.setScissor(half, 0, ew, H);
-    renderer.render(scene, camera);
+    const u = g.post.uniforms;
+    u.pxmm.value = PXMM * pr; u.s2l.value = v.s2l; u.k1.value = v.k1; u.k2.value = v.k2; u.tanMax.value = g.tanMax;
+    // gl_FragCoord tiene origen abajo; el centro vertical coincide, así que no hay que invertir
+    u.map.value = g.rtL.texture; u.vpOrigin.value.set(0, 0); u.lens.value.set(lensL.x * pr, lensL.y * pr);
+    renderer.setViewport(0, 0, half, H); renderer.setScissor(0, 0, half, H);
+    renderer.render(g.postScene, g.postCam);
+    u.map.value = (mR !== mL ? g.rtR : g.rtL).texture; u.vpOrigin.value.set(half * pr, 0); u.lens.value.set(lensR.x * pr, lensR.y * pr);
+    renderer.setViewport(half, 0, half, H); renderer.setScissor(half, 0, half, H);
+    renderer.render(g.postScene, g.postCam);
   }
 
   /* ---------- ciclo principal ---------- */
@@ -651,9 +724,9 @@
       }catch(e){ err('No se pudo pedir el permiso de movimiento.'); return; }
     }
 
-    S.mode = mode; S.fov = +$('#fov').value; S.gap = +$('#gap').value;
+    S.mode = mode; S.fov = +$('#fov').value; S.gap = +$('#gap').value; S.viewer = $('#viewer').value;
     S.inv = $('#inv').checked; S.roll = $('#roll').checked; S.layout = $('#layout').value;
-    store.set('fov', S.fov); store.set('gap', S.gap); store.set('inv', S.inv); store.set('roll', S.roll); store.set('layout', S.layout);
+    store.set('fov', S.fov); store.set('ipd', S.gap); store.set('viewer2', S.viewer); store.set('inv', S.inv); store.set('roll', S.roll); store.set('layout', S.layout);
     S.offset = 0; S.oCount = 0; S.syncs = 0; S.wantPlay = true; S.autoCentered = false;
     window.addEventListener('deviceorientation', onOrient);
 
@@ -693,7 +766,7 @@
     $('#fL').innerHTML = '<div id="pL"></div>'; $('#fR').innerHTML = '<div id="pR"></div>';
     if (S.video){ try{ S.video.pause(); S.video.removeAttribute('src'); S.video.load(); }catch(e){} S.video = null; }
     if (S.url){ URL.revokeObjectURL(S.url); S.url = null; }
-    if (S.gl){ try{ S.gl.tex.dispose(); S.gl.renderer.dispose(); }catch(e){} S.gl = null;
+    if (S.gl){ try{ S.gl.tex.dispose(); S.gl.rtL.dispose(); S.gl.rtR.dispose(); S.gl.renderer.dispose(); }catch(e){} S.gl = null;
       const c = $('#gl'), n = c.cloneNode(false); c.replaceWith(n); }
     try{ S.wake && S.wake.release(); }catch(e){}
     $('#hud').classList.remove('on'); $('#dbg').style.display = 'none'; S.dbg = false;
